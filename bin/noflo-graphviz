@@ -1,0 +1,85 @@
+#!/usr/bin/env coffee
+# vim: set filetype=coffee:
+path = require 'path'
+noflo = require 'noflo'
+graphviz = require 'graphviz'
+
+if process.argv.length < 3
+  console.log "Usage: $ graphviz-noflo file.fbp"
+  process.exit 0
+
+file = path.resolve process.cwd(), process.argv[2]
+if file.indexOf('.json') is -1 and file.indexOf('.fbp') is -1
+  console.error "#{file} is not a NoFlo graph file, aborting"
+  process.exit 0
+
+cleanID = (id) ->
+  id.replace /\s*/g, ""
+cleanPort = (port) ->
+  port.replace /\./g, ""
+
+getShape = (component) ->
+  switch component
+    when 'Kick' then return 'hexagon'
+    when 'SendString' then return 'hexagon'
+    else return 'box'
+
+noflo.graph.loadFile file, (graph) ->
+  g = graphviz.digraph path.basename file, path.extname file
+  nodes = {}
+
+  for node in graph.nodes
+    nodes[node.id] = g.addNode cleanID(node.id),
+      label: "#{node.id}\n#{node.component}"
+      shape: getShape node.component
+
+  for initializer, id in graph.initializers
+    identifier = "data#{id}"
+    nodes[identifier] = g.addNode identifier,
+      label: "'#{initializer.from.data}'"
+      shape: 'plaintext'
+      fontcolor: '#a0a0a0'
+    g.addEdge nodes[identifier], nodes[initializer.to.node],
+      headlabel: cleanPort initializer.to.port
+      labelfontcolor: '#000066'
+      labelfontsize: 0.8
+      color: 'grey'
+
+  for exported in graph.exports
+    identifier = "export#{exported.public}"
+    [nodeId, port] = exported.private.split '.'
+    switch port
+      when 'error', 'errors', 'out'
+        direction = 'from'
+      else
+        direction = 'to'
+
+    nodes[identifier] = g.addNode identifier,
+      label: exported.public.toUpperCase()
+      shape: if direction is 'to' then 'circle' else 'doublecircle'
+
+    for node in graph.nodes
+      continue unless node.id.toLowerCase() is nodeId
+      if direction is 'to'
+        g.addEdge nodes[identifier], nodes[cleanID(node.id)],
+          headlabel: cleanPort port
+          labelfontcolor: '#000066'
+          labelfontsize: 8.0
+        continue
+      g.addEdge nodes[cleanID(node.id)], nodes[identifier],
+        headlabel: cleanPort port
+        labelfontcolor: '#000066'
+        labelfontsize: 8.0
+
+  for edge in graph.edges
+    g.addEdge nodes[edge.from.node], nodes[edge.to.node],
+      taillabel: cleanPort edge.from.port
+      headlabel: cleanPort edge.to.port
+      labelfontcolor: 'blue'
+      labelfontsize: 8.0
+
+  g.render
+    type: 'svg'
+    use: 'dot'
+  , "#{g.id}.svg", (err) ->
+    console.log err
