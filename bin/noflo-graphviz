@@ -19,12 +19,6 @@ cleanPort = (port) ->
   port = port.toUpperCase()
   port.replace /\./g, ""
 
-getShape = (component, instance) ->
-  switch component
-    when 'Kick' then return 'hexagon'
-    when 'SendString' then return 'hexagon'
-    else return 'box'
-
 colors =
   component:
     fill: '#204a87'
@@ -41,6 +35,7 @@ colors =
     label: '#555753'
   port:
     label: '#555753'
+    edge: '#555753'
   export:
     fill: '#e9b96e'
     label: '#000000'
@@ -48,20 +43,37 @@ colors =
 basedir = path.resolve path.dirname(file), '..'
 loader = new noflo.ComponentLoader basedir
 nodes = {}
+components = {}
 noflo.graph.loadFile file, (graph) ->
   g = graphviz.digraph path.basename file, path.extname file
-  loader.listComponents (components) ->
+  loader.listComponents ->
     renderNodes graph, g, ->
       renderInitials graph, g
       renderExports graph, g
       renderEdges graph, g
       render g
 
+getShape = (component, instance) ->
+  switch component
+    when 'Kick','SendString', 'CollectUntilIdle' then return 'hexagon'
+    when 'Drop' then return 'none'
+    else return 'box'
+
+prepareConnection = (style, fromPort, toPort) ->
+  params =
+    labelfontcolor: colors.port.label
+    labelfontsize: 8.0
+    color: colors[style].edge
+  params.headlabel = toPort if toPort
+  params.taillabel = fromPort if fromPort
+  params
+
 renderNodes = (graph, g, done) ->
   todo = graph.nodes.length
   do done if todo is 0
   graph.nodes.forEach (node) ->
     component = loader.load node.component, (instance) ->
+      components[node.id.toLowerCase()] = instance
       params =
         label: "#{node.id}\n#{node.component}"
         shape: getShape node.component, instance
@@ -89,50 +101,55 @@ renderInitials = (graph, g) ->
       style: 'filled,rounded'
       fontcolor: colors.initial.label
       fillcolor: colors.initial.fill
-    g.addEdge nodes[identifier], nodes[initializer.to.node],
-      headlabel: cleanPort initializer.to.port
-      labelfontcolor: colors.port.label
-      labelfontsize: 0.8
-      color: colors.initial.edge
+    g.addEdge nodes[identifier], nodes[initializer.to.node]
+    , prepareConnection 'initial', null, cleanPort initializer.to.port
 
 renderExports = (graph, g) ->
   for exported in graph.exports
     identifier = "export#{exported.public}"
     [nodeId, port] = exported.private.split '.'
-    switch port
-      when 'error', 'errors', 'out'
-        direction = 'from'
-      else
-        direction = 'to'
+    direction = 'to'
+    for portName, portInstance of components[nodeId].outPorts
+      continue unless portName.toLowerCase() is port
+      direction = 'from'
 
     nodes[identifier] = g.addNode identifier,
       label: exported.public.toUpperCase()
       shape: if direction is 'to' then 'circle' else 'doublecircle'
       fontcolor: colors.export.label
+      fontsize: 10.0
       fillcolor: colors.export.fill
       style: 'filled'
 
     for node in graph.nodes
       continue unless node.id.toLowerCase() is nodeId
       if direction is 'to'
-        g.addEdge nodes[identifier], nodes[cleanID(node.id)],
-          headlabel: cleanPort port
-          labelfontcolor: colors.port.label
-          labelfontsize: 8.0
+        g.addEdge nodes[identifier], nodes[cleanID(node.id)]
+        , prepareConnection 'port', null, cleanPort(port)
         continue
-      g.addEdge nodes[cleanID(node.id)], nodes[identifier],
-        headlabel: cleanPort port
-        labelfontcolor: colors.port.label
-        labelfontsize: 8.0
+      g.addEdge nodes[cleanID(node.id)], nodes[identifier]
+      , prepareConnection 'port', cleanPort(port), null
 
 renderEdges = (graph, g) ->
+  shown = {}
   for edge in graph.edges
     continue unless nodes[edge.from.node] and nodes[edge.to.node]
-    g.addEdge nodes[edge.from.node], nodes[edge.to.node],
-      taillabel: cleanPort edge.from.port
-      headlabel: cleanPort edge.to.port
-      labelfontcolor: colors.port.label
-      labelfontsize: 8.0
+    params = prepareConnection 'port', cleanPort(edge.from.port), cleanPort(edge.to.port)
+
+    fromInstance = components[edge.from.node.toLowerCase()]
+    if fromInstance.outPorts[edge.from.port] instanceof noflo.ArrayPort
+      identifier = "#{edge.from.node}_#{edge.from.port}"
+      params.sametail = edge.from.port
+      delete params.taillabel if shown[identifier]
+      shown[identifier] = true
+    toInstance = components[edge.to.node.toLowerCase()]
+    if toInstance.inPorts[edge.to.port] instanceof noflo.ArrayPort
+      identifier = "#{edge.to.node}_#{edge.to.port}"
+      params.samehead = edge.to.port
+      delete params.headlabel if shown[identifier]
+      shown[identifier] = true
+
+    g.addEdge nodes[edge.from.node], nodes[edge.to.node], params
 
 render = (g) ->
   g.render
