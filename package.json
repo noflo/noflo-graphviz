@@ -12,12 +12,16 @@
   },
   "dependencies": {
     "noflo": "0.3.x",
-    "graphviz": "0.0.x"
+    "graphviz": "0.0.x",
+    "underscore": "1.4.x"
   },
   "devDependencies": {
     "nodeunit": ">=0.6.0",
     "coffeelint": "*",
     "coffee-script": "1.4.x"
+  },
+  "bin": {
+    "noflo-graphviz": "./bin/noflo-graphviz"
   },
   "scripts": {
     "pretest": "./node_modules/.bin/coffeelint -r components",

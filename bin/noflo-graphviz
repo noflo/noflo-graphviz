@@ -3,6 +3,9 @@
 path = require 'path'
 noflo = require 'noflo'
 graphviz = require 'graphviz'
+{_} = require 'underscore'
+
+layers = true
 
 if process.argv.length < 3
   console.log "Usage: $ graphviz-noflo file.fbp"
@@ -39,6 +42,17 @@ colors =
   export:
     fill: '#e9b96e'
     label: '#000000'
+  routes:
+    taken: {}
+    available: [
+      '#a40000'
+      '#5c3566'
+      '#204a87'
+      '#4e9a06'
+      '#8f5902'
+      '#ce5c00'
+      '#c4a000'
+    ]
 
 basedir = path.resolve path.dirname(file), '..'
 loader = new noflo.ComponentLoader basedir
@@ -86,6 +100,13 @@ renderNodes = (graph, g, done) ->
       if params.shape is 'hexagon'
         params.fillcolor = colors.gate.fill
         params.fontcolor = colors.gate.label
+      if node.metadata.routes
+        if layers
+          params.layer = node.metadata.routes.join ','
+        for route in node.metadata.routes
+          unless colors.routes.taken[route]
+            colors.routes.taken[route] = colors.routes.available.shift()
+          params.color = colors.routes.taken[route]
 
       nodes[node.id] = g.addNode cleanID(node.id), params
       instance = null
@@ -135,6 +156,17 @@ renderEdges = (graph, g) ->
   for edge in graph.edges
     continue unless nodes[edge.from.node] and nodes[edge.to.node]
     params = prepareConnection 'port', cleanPort(edge.from.port), cleanPort(edge.to.port)
+    fromNode = graph.getNode edge.from.node
+    toNode = graph.getNode edge.to.node
+    if fromNode.metadata.routes and toNode.metadata.routes
+      common = _.intersection fromNode.metadata.routes, toNode.metadata.routes
+      if layers and common
+        params.layer = common.join ','
+      for route in common
+        unless colors.routes.taken[route]
+          colors.routes.taken[route] = colors.routes.available.pop()
+        params.color = colors.routes.taken[route]
+        params.style = 'bold'
 
     fromInstance = components[edge.from.node.toLowerCase()]
     if fromInstance.outPorts[edge.from.port] instanceof noflo.ArrayPort
