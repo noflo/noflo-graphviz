@@ -3,6 +3,53 @@ noflo = require 'noflo'
 graphviz = require 'graphviz'
 {_} = require 'underscore'
 
+loader = null
+nodes = {}
+components = {}
+layers = true
+
+cleanID = (id) ->
+  id.replace /\s*/g, ""
+cleanPort = (port) ->
+  port = port.toUpperCase()
+  port.replace /\./g, ""
+
+colors =
+  component:
+    fill: '#204a87'
+    label: '#ffffff'
+  graph:
+    fill: '#5c3566'
+    label: '#ffffff'
+  gate:
+    fill: '#a40000'
+    label: '#ffffff'
+  initial:
+    edge: '#2e3436'
+    fill: '#eeeeec'
+    label: '#555753'
+  port:
+    label: '#555753'
+    edge: '#555753'
+  export:
+    fill: '#e9b96e'
+    label: '#000000'
+  routes:
+    taken: {}
+    available: [
+      '#a40000'
+      '#5c3566'
+      '#204a87'
+      '#4e9a06'
+      '#8f5902'
+      '#ce5c00'
+      '#c4a000'
+    ]
+
+error = (err) ->
+  console.error err.message
+  console.error err.stack.split("\n").slice(0, 4).join "\n"
+
 getShape = (component, instance) ->
   switch component
     when 'Kick','SendString', 'CollectUntilIdle' then return 'hexagon'
@@ -22,10 +69,11 @@ renderNodes = (graph, g, done) ->
   todo = graph.nodes.length
   do done if todo is 0
   graph.nodes.forEach (node) ->
-    component = loader.load node.component, (instance) ->
+    component = loader.load node.component, (err, instance) ->
+      return error err if err
       components[node.id.toLowerCase()] = instance
       params =
-        label: "#{node.id}\n#{node.component}"
+        label: "#{node.metadata?.label or node.id}\n#{node.component}"
         shape: getShape node.component, instance
         style: 'filled,rounded'
         fillcolor: colors.component.fill
@@ -61,31 +109,49 @@ renderInitials = (graph, g) ->
     g.addEdge nodes[identifier], nodes[initializer.to.node]
     , prepareConnection 'initial', null, cleanPort initializer.to.port
 
+renderExport = (nodeId, publicPort, privatePort, direction, graph, g) ->
+  identifier = "export#{publicPort}"
+  nodes[identifier] = g.addNode identifier,
+    label: publicPort.toUpperCase()
+    shape: if direction is 'to' then 'circle' else 'doublecircle'
+    fontcolor: colors.export.label
+    fontsize: 10.0
+    fillcolor: colors.export.fill
+    style: 'filled'
+
+  for node in graph.nodes
+    continue unless node.id.toLowerCase() is nodeId
+    if direction is 'to'
+      g.addEdge nodes[identifier], nodes[cleanID(node.id)]
+      , prepareConnection 'port', null, cleanPort(privatePort)
+      continue
+    g.addEdge nodes[cleanID(node.id)], nodes[identifier]
+    , prepareConnection 'port', cleanPort(privatePort), null
+
 renderExports = (graph, g) ->
+  for publicPort, exported of graph.inports
+    nodeId = exported.process.toLowerCase()
+    port = exported.port
+    renderExport nodeId, publicPort, exported.port, 'to', graph, g
+
+  for publicPort, exported of graph.outports
+    nodeId = exported.process.toLowerCase()
+    port = exported.port
+    renderExport nodeId, publicPort, exported.port, 'from', graph, g
+
   for exported in graph.exports
-    identifier = "export#{exported.public}"
-    [nodeId, port] = exported.private.split '.'
+    # Ambiguous legacy ports
+    nodeId = exported.process.toLowerCase()
+    port = exported.port
+    unless components[nodeId]
+      message = "No component found for node #{nodeId}."
+      message += " We have #{Object.keys(components).join(', ')}"
+      error new Error message
     direction = 'to'
     for portName, portInstance of components[nodeId].outPorts
       continue unless portName.toLowerCase() is port
       direction = 'from'
-
-    nodes[identifier] = g.addNode identifier,
-      label: exported.public.toUpperCase()
-      shape: if direction is 'to' then 'circle' else 'doublecircle'
-      fontcolor: colors.export.label
-      fontsize: 10.0
-      fillcolor: colors.export.fill
-      style: 'filled'
-
-    for node in graph.nodes
-      continue unless node.id.toLowerCase() is nodeId
-      if direction is 'to'
-        g.addEdge nodes[identifier], nodes[cleanID(node.id)]
-        , prepareConnection 'port', null, cleanPort(port)
-        continue
-      g.addEdge nodes[cleanID(node.id)], nodes[identifier]
-      , prepareConnection 'port', cleanPort(port), null
+    renderExport nodeId, exported.public, port, direction, graph, g
 
 renderEdges = (graph, g) ->
   shown = {}
@@ -121,21 +187,32 @@ renderEdges = (graph, g) ->
 
     g.addEdge nodes[edge.from.node], nodes[edge.to.node], params
 
-render = (g) ->
+render = (g, output) ->
   g.render
-    type: 'svg'
+    type: output
     use: 'dot'
-  , "#{g.id}.svg"
+  , "#{g.id}.#{output}"
   process.nextTick ->
     setTimeout ->
       process.exit 0
     , 3000
 
-exports.main = ->
-  layers = true
+exports.toDot = (file, callback) ->
+  basedir = path.resolve path.dirname(file), '..'
+  loader = new noflo.ComponentLoader basedir
+  noflo.graph.loadFile file, (err, graph) ->
+    return callback err if err
+    g = graphviz.digraph path.basename file, path.extname file
+    loader.listComponents ->
+      renderNodes graph, g, ->
+        renderInitials graph, g
+        renderExports graph, g
+        renderEdges graph, g
+        callback null, g
 
+exports.main = ->
   if process.argv.length < 3
-    console.log "Usage: $ graphviz-noflo file.fbp"
+    console.log "Usage: $ graphviz-noflo file.fbp <svg|dot|png>"
     process.exit 0
 
   file = path.resolve process.cwd(), process.argv[2]
@@ -143,53 +220,10 @@ exports.main = ->
     console.error "#{file} is not a NoFlo graph file, aborting"
     process.exit 0
 
-  cleanID = (id) ->
-    id.replace /\s*/g, ""
-  cleanPort = (port) ->
-    port = port.toUpperCase()
-    port.replace /\./g, ""
+  output = 'svg'
+  if process.argv.length > 3
+    output = process.argv[3]
 
-  colors =
-    component:
-      fill: '#204a87'
-      label: '#ffffff'
-    graph:
-      fill: '#5c3566'
-      label: '#ffffff'
-    gate:
-      fill: '#a40000'
-      label: '#ffffff'
-    initial:
-      edge: '#2e3436'
-      fill: '#eeeeec'
-      label: '#555753'
-    port:
-      label: '#555753'
-      edge: '#555753'
-    export:
-      fill: '#e9b96e'
-      label: '#000000'
-    routes:
-      taken: {}
-      available: [
-        '#a40000'
-        '#5c3566'
-        '#204a87'
-        '#4e9a06'
-        '#8f5902'
-        '#ce5c00'
-        '#c4a000'
-      ]
-
-  basedir = path.resolve path.dirname(file), '..'
-  loader = new noflo.ComponentLoader basedir
-  nodes = {}
-  components = {}
-  noflo.graph.loadFile file, (graph) ->
-    g = graphviz.digraph path.basename file, path.extname file
-    loader.listComponents ->
-      renderNodes graph, g, ->
-        renderInitials graph, g
-        renderExports graph, g
-        renderEdges graph, g
-        render g
+  exports.toDot file, (err, graph) ->
+    return error err if err
+    render graph, output
