@@ -3,28 +3,33 @@
   "description": "GraphViz components for the NoFlo flow-based programming environment",
   "author": "Henri Bergius <henri.bergius@iki.fi>",
   "version": "0.0.2",
-  "licenses": [{
-    "type": "MIT",
-    "url": "https://github.com/bergie/noflo/raw/master/LICENSE"
-  }],
+  "license": "MIT",
+  "keywords": [
+    "noflo"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noflo/noflo-graphviz.git"
+  },
   "engines": {
     "node": ">=0.6.0"
   },
   "dependencies": {
-    "noflo": "0.3.x",
-    "graphviz": "0.0.x",
-    "underscore": "1.4.x"
+    "noflo": "0.x >= 0.7",
+    "graphviz": "~0.0.8",
+    "underscore": "~1.8.3",
+    "coffee-script": "^1.12.2"
   },
   "devDependencies": {
-    "nodeunit": ">=0.6.0",
-    "coffeelint": "*",
-    "coffee-script": "1.4.x"
+    "chai": "^3.5.0",
+    "coffeelint": "^1.16.0",
+    "mocha": "^3.2.0"
   },
   "bin": {
     "noflo-graphviz": "./bin/noflo-graphviz"
   },
   "scripts": {
-    "pretest": "./node_modules/.bin/coffeelint -r components",
-    "test": "./node_modules/.bin/nodeunit test"
+    "pretest": "./node_modules/.bin/coffeelint -r src",
+    "test": "mocha --compilers coffee:coffee-script/register --require coffee-script/register -R spec -t 2000 spec/*.coffee"
   }
 }

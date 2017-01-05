@@ -1,0 +1,15 @@
+language: node_js
+node_js:
+- '4.2'
+addons:
+  apt:
+    packages:
+    - graphviz
+deploy:
+  provider: npm
+  email: henri.bergius@iki.fi
+  api_key:
+    secure: fSSKGt+jMRGtuu4a9hiYRYecvkOgHBF2J+qLMlbmXEJdhTSvEQkVn7/mSwLQT9zmbHbNMbn0dTtc00L0leA7dZlMVOchpyJuVFYwJRgH9nPokSQticZaVXMXEqORBHSY1IUnVi4o8pn8EnFPfT4Gm86/zAk0NXt768h5Gp3opSc=
+  on:
+    tags: true
+    repo: noflo/noflo-graphviz
