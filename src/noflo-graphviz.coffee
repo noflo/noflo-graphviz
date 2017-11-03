@@ -159,13 +159,13 @@ renderEdges = (graph, g) ->
         params.style = 'bold'
 
     fromInstance = components[edge.from.node.toLowerCase()]
-    if fromInstance.outPorts[edge.from.port] instanceof noflo.ArrayPort
+    if fromInstance.outPorts[edge.from.port].isAddressable()
       identifier = "#{edge.from.node}_#{edge.from.port}"
       params.sametail = edge.from.port
       delete params.taillabel if shown[identifier]
       shown[identifier] = true
     toInstance = components[edge.to.node.toLowerCase()]
-    if toInstance.inPorts[edge.to.port] instanceof noflo.ArrayPort
+    if toInstance.inPorts[edge.to.port].isAddressable()
       identifier = "#{edge.to.node}_#{edge.to.port}"
       params.samehead = edge.to.port
       delete params.headlabel if shown[identifier]
