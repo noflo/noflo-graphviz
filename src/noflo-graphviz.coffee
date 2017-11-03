@@ -139,20 +139,6 @@ renderExports = (graph, g) ->
     port = exported.port
     renderExport nodeId, publicPort, exported.port, 'from', graph, g
 
-  for exported in graph.exports
-    # Ambiguous legacy ports
-    nodeId = exported.process.toLowerCase()
-    port = exported.port
-    unless components[nodeId]
-      message = "No component found for node #{nodeId}."
-      message += " We have #{Object.keys(components).join(', ')}"
-      error new Error message
-    direction = 'to'
-    for portName, portInstance of components[nodeId].outPorts
-      continue unless portName.toLowerCase() is port
-      direction = 'from'
-    renderExport nodeId, exported.public, port, direction, graph, g
-
 renderEdges = (graph, g) ->
   shown = {}
   for edge in graph.edges
