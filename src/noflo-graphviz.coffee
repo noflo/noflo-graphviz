@@ -139,20 +139,6 @@ renderExports = (graph, g) ->
     port = exported.port
     renderExport nodeId, publicPort, exported.port, 'from', graph, g
 
-  for exported in graph.exports
-    # Ambiguous legacy ports
-    nodeId = exported.process.toLowerCase()
-    port = exported.port
-    unless components[nodeId]
-      message = "No component found for node #{nodeId}."
-      message += " We have #{Object.keys(components).join(', ')}"
-      error new Error message
-    direction = 'to'
-    for portName, portInstance of components[nodeId].outPorts
-      continue unless portName.toLowerCase() is port
-      direction = 'from'
-    renderExport nodeId, exported.public, port, direction, graph, g
-
 renderEdges = (graph, g) ->
   shown = {}
   for edge in graph.edges
@@ -173,13 +159,13 @@ renderEdges = (graph, g) ->
         params.style = 'bold'
 
     fromInstance = components[edge.from.node.toLowerCase()]
-    if fromInstance.outPorts[edge.from.port] instanceof noflo.ArrayPort
+    if fromInstance.outPorts[edge.from.port].isAddressable()
       identifier = "#{edge.from.node}_#{edge.from.port}"
       params.sametail = edge.from.port
       delete params.taillabel if shown[identifier]
       shown[identifier] = true
     toInstance = components[edge.to.node.toLowerCase()]
-    if toInstance.inPorts[edge.to.port] instanceof noflo.ArrayPort
+    if toInstance.inPorts[edge.to.port].isAddressable()
       identifier = "#{edge.to.node}_#{edge.to.port}"
       params.samehead = edge.to.port
       delete params.headlabel if shown[identifier]

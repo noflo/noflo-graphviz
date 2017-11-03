@@ -12,17 +12,17 @@
     "url": "https://github.com/noflo/noflo-graphviz.git"
   },
   "engines": {
-    "node": ">=0.6.0"
+    "node": ">=6"
   },
   "dependencies": {
-    "noflo": "0.x >= 0.7",
+    "noflo": "^1.0.0",
     "graphviz": "~0.0.8",
     "underscore": "~1.8.3",
-    "coffee-script": "^1.12.2"
+    "coffeescript": "^2.0.2"
   },
   "devDependencies": {
     "chai": "^4.0.0",
-    "coffeelint": "^1.16.0",
+    "coffeelint": "^2.0.7",
     "mocha": "^4.0.0"
   },
   "bin": {
@@ -30,6 +30,6 @@
   },
   "scripts": {
     "pretest": "./node_modules/.bin/coffeelint -r src",
-    "test": "mocha --compilers coffee:coffee-script/register --require coffee-script/register -R spec -t 2000 spec/*.coffee"
+    "test": "mocha --require coffeescript/register -R spec -t 2000 spec/*.coffee"
   }
 }
