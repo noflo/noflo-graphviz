@@ -2,7 +2,7 @@
   "name": "noflo-graphviz",
   "description": "GraphViz components for the NoFlo flow-based programming environment",
   "author": "Henri Bergius <henri.bergius@iki.fi>",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "keywords": [
     "noflo"
