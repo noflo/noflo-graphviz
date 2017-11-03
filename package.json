@@ -12,10 +12,10 @@
     "url": "https://github.com/noflo/noflo-graphviz.git"
   },
   "engines": {
-    "node": ">=0.6.0"
+    "node": ">=6"
   },
   "dependencies": {
-    "noflo": "1.0.0",
+    "noflo": "^1.0.0",
     "graphviz": "~0.0.8",
     "underscore": "~1.8.3",
     "coffee-script": "^1.12.2"
