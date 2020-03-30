@@ -17,7 +17,7 @@
   "dependencies": {
     "noflo": "^1.0.0",
     "graphviz": "~0.0.8",
-    "underscore": "~1.9.0",
+    "underscore": "~1.10.2",
     "coffeescript": "^2.0.2"
   },
   "devDependencies": {
