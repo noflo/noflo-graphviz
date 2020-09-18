@@ -17,19 +17,22 @@
   "dependencies": {
     "noflo": "^1.0.0",
     "graphviz": "~0.0.8",
-    "underscore": "~1.10.0",
-    "coffeescript": "^2.0.2"
+    "underscore": "~1.10.0"
   },
   "devDependencies": {
     "chai": "^4.0.0",
-    "coffeelint": "^2.0.7",
+    "eslint": "^7.9.0",
+    "eslint-config-airbnb-base": "^14.2.0",
+    "eslint-plugin-chai": "0.0.1",
+    "eslint-plugin-import": "^2.22.0",
+    "eslint-plugin-mocha": "^8.0.0",
     "mocha": "^7.0.1"
   },
   "bin": {
     "noflo-graphviz": "./bin/noflo-graphviz"
   },
   "scripts": {
-    "pretest": "./node_modules/.bin/coffeelint -r src",
-    "test": "mocha --require coffeescript/register -R spec -t 2000 spec/*.coffee"
+    "pretest": "eslint src spec/*.js",
+    "test": "mocha spec"
   }
 }
