@@ -16,7 +16,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
     - name: install graphviz
-      run: apt-get install -y graphviz
+      run: sudo apt-get install -y graphviz
     - name: npm install and test
       run: |
         npm install
