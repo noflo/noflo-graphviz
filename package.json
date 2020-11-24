@@ -15,8 +15,9 @@
     "node": ">=6"
   },
   "dependencies": {
-    "noflo": "^1.0.0",
+    "coffeescript": "^2.5.1",
     "graphviz": "~0.0.8",
+    "noflo": "^1.0.0",
     "underscore": "~1.12.0"
   },
   "devDependencies": {
